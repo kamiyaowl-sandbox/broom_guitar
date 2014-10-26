@@ -10,6 +10,8 @@
 #include "SoftwareSerial.h"
 
 #define PC_SERIAL_BAUD 57600
+#define TRUE 1
+#define FALSE 0
 
 SoftwareSerial midi(12, 10); //Soft TX on 10, we don't use RX in this code
 
@@ -17,15 +19,25 @@ SoftwareSerial midi(12, 10); //Soft TX on 10, we don't use RX in this code
 #define FIRST_PIN 0
 #define LAST_PIN 11
 
-//VS1053 setup
-byte note = 0; //The MIDI note value to be played
-byte resetMIDI = 8; //Tied to VS1053 Reset line
-byte ledPin = 13; //MIDI traffic inidicator
-int  instrument = 0;
+const uint8_t stroke_size = 4;
+const uint8_t stroke_pins[] = {3,2,1,0};
+const uint8_t flet_size = 8;
+const uint8_t flet_pins[] = {11,10,9,8,7,6,5,4};
+const uint8_t guitarNotes[4][9] = {//4弦8フレット+開放
+	{77, 78,79,80,81,82, 83,84,85},
+	{72, 73,74,75,76,77, 78,79,80},
+	{67, 68,69,70,71,72, 73,74,75},
+	{62, 63,64,65,66,67, 68,69,70},
+};
 
-//key definitions
-const byte whiteNotes[] = {60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81};
-const byte allNotes[] = {60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71};
+uint8_t default_inst[] = {30, 27,28,29,31, 35,37,39,69};
+//ラッチしたタッチステータス
+uint8_t flet_status[8] = {};
+//再生中の弦がindex、値は鳴らしてるノートナンバー
+uint8_t stroke_enable[4] = {};
+
+const uint8_t resetMIDI = 8;
+const uint8_t ledPin = 13;
 
 void setup(){
 	Serial.begin(PC_SERIAL_BAUD);
@@ -57,84 +69,106 @@ void setup(){
 	digitalWrite(resetMIDI, HIGH);
 	delay(100);
 	
-	// initialise MIDI
-	setupMidi();
-	
-	
+	//起動時オプションで音源変更
+	for(uint8_t i = 0 ; i < 10 ; ++i){
+		digitalWrite(ledPin,HIGH);
+		delay(50);
+		digitalWrite(ledPin,LOW);
+		delay(50);
+	}
+	MPR121.updateAll();
+	updateFlet();
+	//initialise MIDI
+	uint8_t index = getMaximumFlet();
+	midiSetup(default_inst[index]);
+
+	for (uint8_t i = 0 ; i < stroke_size ; ++i){
+		noteOn(0,guitarNotes[i][0],60);
+		delay(300);
+	}
+	delay(500);
+	for (uint8_t i = 0 ; i < stroke_size ; ++i){
+		noteOff(0,guitarNotes[i][0],60);
+	}
 }
 
+void updateFlet()
+{
+	for(uint8_t i = 0 ; i < sizeof(flet_pins) ; ++i){
+		if(MPR121.isNewTouch(flet_pins[i])){
+			flet_status[i] = TRUE;
+			} else if(MPR121.isNewRelease(flet_pins[i])){
+			flet_status[i] = FALSE;
+		}
+	}
+}
+//押されている一番高い音のなるフレットを返す
+//押されていない場合は0で1フレットからであることに注意 0 ~ 8
+uint8_t getMaximumFlet(){
+	for(int8_t i = flet_size - 1; i >= 0 ; --i){
+		if(flet_status[i]) return i + 1;
+	}
+	return 0;
+}
 void loop(){
 	if(MPR121.touchStatusChanged()){
-		
 		MPR121.updateAll();
-		
-		// code below sets up the board essentially like a piano, with an octave
-		// mapped to the 12 electrodes, each a semitone up from the previous
-		for(int i=FIRST_PIN; i<=LAST_PIN; i++){
-			
-			// you can choose how to map the notes here
-			note = whiteNotes[LAST_PIN-i];
-			if(MPR121.isNewTouch(i)){
-				//Note on channel 1 (0x90), some note value (note), middle velocity (0x45):
-				noteOn(0, note, 60);
-				Serial.print("Note ");
-				Serial.print(note);
-				Serial.println(" on");
-				} else if(MPR121.isNewRelease(i)) {
-				//Turn off the note with a given off/release velocity
-				noteOff(0, note, 60);
-				Serial.print("Note ");
-				Serial.print(note);
-				Serial.println(" off");
+		updateFlet();
+		for(uint8_t i = 0 ; i < stroke_size ; ++i){
+			if(MPR121.isNewTouch(stroke_pins[i])){
+				//フレット情報を読み取って鳴らす
+				uint8_t flet = getMaximumFlet();
+				stroke_enable[i] = guitarNotes[i][flet];
+				noteOn(0, stroke_enable[i],60);
+			} else if(MPR121.isNewRelease(stroke_pins[i])){
+				//再生中の音を取得してリリース
+				noteOff(0,stroke_enable[i],60);
+				stroke_enable[i] = 0x0;
 			}
+
 		}
 	}
 }
 
-// functions below are little helpers based on using the SoftwareSerial
-// as a MIDI stream input to the VS1053 - all based on stuff from Nathan Seidle
 
-//Send a MIDI note-on message.  Like pressing a piano key
-//channel ranges from 0-15
-void noteOn(byte channel, byte note, byte attack_velocity) {
-	talkMIDI( (0x90 | channel), note, attack_velocity);
+void noteOn(uint8_t channel, uint8_t note, uint8_t attack_velocity) {
+	midiWrite( (0x90 | channel), note, attack_velocity);
 }
 
-//Send a MIDI note-off message.  Like releasing a piano key
-void noteOff(byte channel, byte note, byte release_velocity) {
-	talkMIDI( (0x80 | channel), note, release_velocity);
+void noteOff(uint8_t channel, uint8_t note, uint8_t release_velocity) {
+	midiWrite( (0x80 | channel), note, release_velocity);
 }
 
-//Plays a MIDI note. Doesn't check to see that cmd is greater than 127, or that data values are less than 127
-void talkMIDI(byte cmd, byte data1, byte data2) {
+void midiWrite(uint8_t cmd, uint8_t data1, uint8_t data2) {
 	digitalWrite(ledPin, HIGH);
 	midi.write(cmd);
 	midi.write(data1);
 
-	//Some commands only have one data byte. All cmds less than 0xBn have 2 data bytes
-	//(sort of: http://253.ccarh.org/handout/midiprotocol/)
 	if( (cmd & 0xF0) <= 0xB0)
 	midi.write(data2);
 
 	digitalWrite(ledPin, LOW);
 }
 
+
+
+
 /*SETTING UP THE INSTRUMENT:
 The below function "setupMidi()" is where the instrument bank is defined. Use the VS1053 instrument library
 below to aid you in selecting your desire instrument from within the respective instrument bank
 */
 
-void setupMidi(){
+void midiSetup(uint8_t inst){
 	
 	//Volume
-	talkMIDI(0xB0, 0x07, 127); //0xB0 is channel message, set channel volume to near max (127)
+	midiWrite(0xB0, 0x07, 127); //0xB0 is channel message, set channel volume to near max (127)
 	
 	//Melodic Instruments GM1
 	//To Play "Electric Piano" (5):
-	talkMIDI(0xB0, 0, 0x00); //Default bank GM1
+	midiWrite(0xB0, 0, 0x00); //Default bank GM1
 	//We change the instrument by changin the middle number in  the brackets
 	//talkMIDI(0xC0, number, 0); "number" can be any number from the melodic table below
-	talkMIDI(0xC0, 30, 0); //Set instrument number. 0xC0 is a 1 data byte command(55,0)
+	midiWrite(0xC0, inst, 0); //Set instrument number. 0xC0 is a 1 data uint8_t command(55,0)
 	
 	//Percussion Instruments (GM1 + GM2) uncomment the code below to use
 	// To play "Sticks" (31):
@@ -145,7 +179,6 @@ void setupMidi(){
 	//NOTE: need to figure out how to map this... or is it the same as white keys?
 	
 }
-
 /*MIDI INSTRUMENT LIBRARY:
 
 MELODIC INSTRUMENTS (GM1)

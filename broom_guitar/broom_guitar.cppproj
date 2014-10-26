@@ -63,8 +63,6 @@
           <ListValues>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\variants\leonardo</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121\utility</Value>
             <Value>C:\Program Files (x86)\Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\Bare_Conductive_Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers</Value>
@@ -98,8 +96,6 @@
           <ListValues>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\variants\leonardo</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121\utility</Value>
             <Value>C:\Program Files (x86)\Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\Bare_Conductive_Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers</Value>
@@ -147,8 +143,6 @@
           <ListValues>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\variants\leonardo</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121\utility</Value>
             <Value>C:\Program Files (x86)\Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\Bare_Conductive_Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers</Value>
@@ -182,8 +176,6 @@
           <ListValues>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\arduino\avr\variants\leonardo</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121</Value>
-            <Value>C:\Program Files (x86)\Arduino\libraries\MPR121\utility</Value>
             <Value>C:\Program Files (x86)\Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Arduino\hardware\Bare_Conductive_Arduino\libraries</Value>
             <Value>C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers</Value>
@@ -209,6 +201,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="broom_guitar.ino">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="MPR121.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="MPR121.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="MPR121_defs.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="Visual Micro\.broom_guitar.vsarduino.h">
